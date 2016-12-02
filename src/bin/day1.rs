@@ -6,7 +6,7 @@ use regex::Regex;
 use std::io;
 
 lazy_static! {
-    static ref MOVEMENT_RE: Regex = Regex::new(r#"([RL])(\d)"#).unwrap();
+    static ref MOVEMENT_RE: Regex = Regex::new(r#"([RL])(\d+)"#).unwrap();
 }
 
 fn main() {
