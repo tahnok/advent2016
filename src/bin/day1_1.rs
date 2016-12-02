@@ -2,6 +2,10 @@
 extern crate lazy_static;
 extern crate regex;
 
+#[path="../day1.rs"]
+mod day1;
+
+use day1::*;
 use regex::Regex;
 use std::io;
 
@@ -13,43 +17,14 @@ fn main() {
     let mut input = String::new();
     match io::stdin().read_line(&mut input) {
         Ok(_) => {
-            let dist = calculate_distance(&parse_input(&input));
+            let dist = follow_instructions(&parse_input(&input));
             println!("{}", dist);
         }
         Err(error) => println!("error: {}", error),
     }
 }
 
-#[derive(PartialEq)]
-#[derive(Debug)]
-enum Direction {
-    North,
-    East,
-    South,
-    West,
-}
-
-impl Direction {
-    fn turn_right(&self) -> Direction {
-        match *self {
-            Direction::North => Direction::East,
-            Direction::East => Direction::South,
-            Direction::South => Direction::West,
-            Direction::West => Direction::North,
-        }
-    }
-
-    fn turn_left(&self) -> Direction {
-        match *self {
-            Direction::North => Direction::West,
-            Direction::East => Direction::North,
-            Direction::South => Direction::East,
-            Direction::West => Direction::South,
-        }
-    }
-}
-
-fn calculate_distance(instructions: &[&str]) -> i32 {
+fn follow_instructions(instructions: &[&str]) -> i32 {
     let mut x_position: i32 = 0;
     let mut y_position: i32 = 0;
     let mut current_direction = Direction::North;
@@ -70,85 +45,47 @@ fn calculate_distance(instructions: &[&str]) -> i32 {
         }
         println!("x: {}, y: {}", x_position, y_position);
     }
-    x_position.abs() + y_position.abs()
-}
-
-fn parse_input<'a>(input: &'a str) -> Vec<&'a str> {
-    input.trim().split(", ").collect()
+    calculate_distance(x_position, y_position)
 }
 
 #[test]
-fn calculate_distance_one_move_left() {
+fn follow_instructions_one_move_left() {
     let left = ["L1"];
-    assert_eq!(1, calculate_distance(&left));
+    assert_eq!(1, follow_instructions(&left));
 }
 
 #[test]
-fn calculate_distance_two_moves_left() {
+fn follow_instructions_two_moves_left() {
     let left = ["L2"];
-    assert_eq!(2, calculate_distance(&left));
+    assert_eq!(2, follow_instructions(&left));
 }
 
 #[test]
-fn calculate_distance_one_move_right() {
+fn follow_instructions_one_move_right() {
     let right = ["R1"];
-    assert_eq!(1, calculate_distance(&right));
+    assert_eq!(1, follow_instructions(&right));
 }
 
 #[test]
-fn calculate_distance_two_moves_right() {
+fn follow_instructions_two_moves_right() {
     let right = ["R2"];
-    assert_eq!(2, calculate_distance(&right));
+    assert_eq!(2, follow_instructions(&right));
 }
 
 #[test]
-fn calculate_distance_right_then_left() {
+fn follow_instructions_right_then_left() {
     let moves = ["R2", "L3"];
-    assert_eq!(5, calculate_distance(&moves));
+    assert_eq!(5, follow_instructions(&moves));
 }
 
 #[test]
-fn calculate_distance_all_rights() {
+fn follow_instructions_all_rights() {
     let moves = ["R2", "R2", "R2"];
-    assert_eq!(2, calculate_distance(&moves));
+    assert_eq!(2, follow_instructions(&moves));
 }
 
 #[test]
-fn calculate_distance_complex() {
+fn follow_instructions_complex() {
     let moves = ["R5", "L5", "R5", "R3"];
-    assert_eq!(12, calculate_distance(&moves));
-}
-
-#[test]
-fn parses_input_single_input() {
-    let input = "L1";
-    assert_eq!(vec!["L1"], parse_input(input));
-}
-
-#[test]
-fn parses_input_multiple_input() {
-    let input = "L1, R2";
-    assert_eq!(vec!["L1", "R2"], parse_input(input));
-}
-
-#[test]
-fn parses_input_newlines() {
-    let input = "L1, R2\n";
-    assert_eq!(vec!["L1", "R2"], parse_input(input));
-}
-
-#[test]
-fn test_turn_left() {
-    assert_eq!(Direction::West, Direction::North.turn_left());
-    assert_eq!(Direction::North, Direction::East.turn_left());
-    assert_eq!(Direction::East, Direction::South.turn_left());
-    assert_eq!(Direction::South, Direction::West.turn_left());
-}
-
-#[test]
-fn test_turn_right() {
-    assert_eq!(Direction::East, Direction::North.turn_right());
-    assert_eq!(Direction::South, Direction::East.turn_right());
-    assert_eq!(Direction::West, Direction::South.turn_right());
-    assert_eq!(Direction::North, Direction::West.turn_right());
+    assert_eq!(12, follow_instructions(&moves));
 }
