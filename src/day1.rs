@@ -68,3 +68,7 @@ fn parses_input_newlines() {
 pub fn calculate_distance(x: i32, y: i32) -> i32 {
     x.abs() + y.abs()
 }
+
+pub fn calculate_distance_tuple((x, y): (i32, i32)) -> i32 {
+    calculate_distance(x, y)
+}
