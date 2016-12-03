@@ -8,6 +8,7 @@ mod day1;
 use day1::*;
 use regex::Regex;
 use std::io;
+use std::ops::Range;
 
 lazy_static! {
     static ref MOVEMENT_RE: Regex = Regex::new(r#"([RL])(\d+)"#).unwrap();
@@ -74,10 +75,11 @@ fn move_and_check(old_x: i32, old_y: i32, delta_x: i32, delta_y: i32) -> (i32, i
 }
 
 fn check_for_revisit(old_x: i32, old_y: i32, new_x: i32, new_y: i32, visited: &mut Vec<(i32, i32)>) -> Result<i32, ()> {
+    println!("{}", steps(old_x, new_x));
     for mut step in old_x..new_x {
         step = step + 1;
         let pos = (step, old_y);
-        // println!("x: {}, y: {}", step, old_y);
+        println!("x: {}, y: {}", step, old_y);
         if visited.contains(&pos) {
             return Ok(calculate_distance_tuple(pos))
         } else {
@@ -87,7 +89,7 @@ fn check_for_revisit(old_x: i32, old_y: i32, new_x: i32, new_y: i32, visited: &m
     for mut step in old_y..new_y {
         step = step + 1;
         let pos = (new_x, step);
-        // println!("x: {}, y: {}", new_x, step);
+        println!("x: {}, y: {}", new_x, step);
         if visited.contains(&pos) {
             return Ok(calculate_distance_tuple(pos))
         } else {
@@ -95,6 +97,14 @@ fn check_for_revisit(old_x: i32, old_y: i32, new_x: i32, new_y: i32, visited: &m
         }
     }
     Err(())
+}
+
+fn steps(a: i32, b: i32) -> Vec<i32> {
+    if b > a {
+        Range{ start: a, end: b + 1}.collect()
+    } else {
+        Range{ end: a + 1, start: b }.rev().collect()
+    }
 }
 
 #[test]
@@ -107,4 +117,53 @@ fn no_revisits() {
 fn found_revisit() {
     let moves = ["R8", "R4", "R4", "R8"];
     assert_eq!(4, dist_to_first_revisit(&moves).unwrap());
+}
+
+#[test]
+fn visits_all_steps_east() {
+    let mut visited = vec![(0,0)];
+    let _ = check_for_revisit(0, 0, 2, 0, &mut visited);
+    assert_eq!(vec![(0,0), (1,0), (2,0)], visited);
+}
+
+#[test]
+fn visits_all_steps_north() {
+    let mut visited = vec![(0,0)];
+    let _ = check_for_revisit(0, 0, 0, 2, &mut visited);
+    assert_eq!(vec![(0,0), (0,1), (0,2)], visited);
+}
+
+#[test]
+fn visits_all_steps_south() {
+    let mut visited = vec![(0,0)];
+    let _ = check_for_revisit(2, 0, 0, 0, &mut visited);
+    assert_eq!(vec![(0,0), (0,1), (0,2)], visited);
+}
+
+#[test]
+fn steps_works() {
+    let expected = vec![1,2,3];
+    let result: Vec<i32> = steps(1,3);
+    assert_eq!(expected, result);
+}
+
+#[test]
+fn steps_negative() {
+    let expected = vec![-8,-7,-6];
+    let result: Vec<i32> = steps(-8, -6);
+    assert_eq!(expected, result);
+}
+
+#[test]
+fn steps_reverse() {
+    let expected = vec![3,2,1];
+    let result: Vec<i32> = steps(3, 1);
+    assert_eq!(expected, result);
+}
+
+#[test]
+fn steps_reverse_negative() {
+    let expected = vec![-6,-7,-8];
+    let result: Vec<i32> = steps(-6, -8);
+    assert_eq!(expected, result);
 }
