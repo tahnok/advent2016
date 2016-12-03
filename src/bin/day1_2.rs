@@ -55,17 +55,8 @@ fn dist_to_first_revisit(instructions: &[&str]) -> Result<i32, ()> {
 
         x = new_x;
         y = new_y;
-        // debug_hashset(instruction, &visited);
     }
     Err(())
-}
-
-fn debug_hashset(instruction: &str, visited: &Vec<(i32, i32)>) {
-    println!("instruction: {}", instruction);
-    for visit in visited {
-        let (x, y) = *visit;
-        println!("x: {}, y: {}", x, y);
-    }
 }
 
 fn delta_to_cords(old_x: i32, old_y: i32, delta_x: i32, delta_y: i32) -> (i32, i32) {
