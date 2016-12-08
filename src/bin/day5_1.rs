@@ -2,7 +2,31 @@ extern crate crypto;
 
 use crypto::md5::Md5;
 use crypto::digest::Digest;
+use std::io;
+use std::io::Read;
 
+fn main() {
+    let mut input = String::new();
+    let _ = io::stdin().read_to_string(&mut input);
+    println!("{:x}", generate(input.trim()));
+}
+
+pub fn generate(input: &str) -> u32 {
+    let mut found = 0;
+    let mut hasher = Md5::new();
+    let mut result: [u8; 8] = [0, 0, 0, 0, 0, 0, 0, 0];
+    for x in 0..u32::max_value() {
+        let hashed = hash(&mut hasher, input, x);
+        if special(hashed) {
+            result[found] = extract(hashed);
+            found = found + 1;
+            if found >= 8 {
+                break;
+            }
+        }
+    }
+    join(result)
+}
 
 pub fn hash(hasher: &mut Md5, input: &str, offset: u32) -> [u8; 16] {
     hasher.reset();
@@ -30,23 +54,6 @@ pub fn join(input: [u8; 8]) -> u32 {
         result = result + (input[i] as u32);
     }
     result
-}
-
-pub fn generate(input: &str) -> u32 {
-    let mut found = 0;
-    let mut hasher = Md5::new();
-    let mut result: [u8; 8] = [0, 0, 0, 0, 0, 0, 0, 0];
-    for x in 0..u32::max_value() {
-        let hashed = hash(&mut hasher, input, x);
-        if special(hashed) {
-            result[found] = extract(hashed);
-            found = found + 1;
-            if found > 8 {
-                break;
-            }
-        }
-    }
-    join(result)
 }
 
 #[cfg(test)]
@@ -96,8 +103,4 @@ mod tests {
         assert_eq!(0xfedcba98, join(input2));
     }
 
-    #[test]
-    fn it_generates_a_password() {
-        assert_eq!(0x18f47a30, generate("abc"))
-    }
 }
