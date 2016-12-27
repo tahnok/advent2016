@@ -41,7 +41,15 @@ fn hash(key: &str, index: usize, hasher: &mut Md5) -> Vec<char> {
     hasher.input_str(key);
     hasher.input_str(&index.to_string());
 
-    hasher.result_str().chars().collect()
+    let mut stretching = hasher.result_str();
+
+    for _ in 0..2016 {
+        hasher.reset();
+        hasher.input_str(&stretching);
+        stretching = hasher.result_str();
+    }
+
+    stretching.chars().collect()
 }
 
 pub struct Hasher {
@@ -62,8 +70,11 @@ impl Hasher {
     }
 
     fn get(&mut self, index: usize) -> Vec<char> {
+        if self.lookup.contains_key(&index) {
+            return self.lookup.get(&index).unwrap().clone()
+        }
         self.lookup.entry(index).or_insert(
-            hash(&self.key, index, &mut self.digest) //this is wrong because it gets evaulated every time as an arg
+            hash(&self.key, index, &mut self.digest)
             ).clone()
     }
 
@@ -103,6 +114,7 @@ impl Hasher {
 mod tests {
     use crypto::md5::Md5;
     use crypto::digest::Digest;
+    use std::time::Instant;
     use super::*;
 
     fn hash(input: &str) -> Vec<char> {
@@ -138,20 +150,36 @@ mod tests {
     #[test]
     fn it_hashes() {
         let mut hasher = Hasher::new("abc");
-        assert_eq!(hash("abc1"), hasher.get(1));
+        let expect = "a107ff634856bb300138cac6568c0f24".to_string();
+        let result: String = hasher.get(0).into_iter().collect();
+        assert_eq!(expect, result);
+    }
+
+    #[ignore]
+    #[test]
+    fn it_times_hashes() {
+        let mut hasher = Hasher::new("abc");
+        for _ in 0..10 {
+            let mut start = Instant::now();
+            let _ = hasher.get(0);
+            let elapsed = start.elapsed();
+            println!("{}", (elapsed.as_secs() * 1_000) + (elapsed.subsec_nanos() / 1_000_000) as u64);
+        }
+
+        assert!(false);
     }
 
     #[test]
     fn it_finds_triples() {
         let mut hasher = Hasher::new("abc");
-        assert_eq!((18, '8'), hasher.next_triple());
-        assert_eq!((39, 'e'), hasher.next_triple());
+        assert_eq!((5, '2'), hasher.next_triple());
+        assert_eq!((10, 'e'), hasher.next_triple());
     }
+
 
     #[test]
     fn it_finds_key() {
         let mut hasher = Hasher::new("abc");
-        assert_eq!(39, hasher.next_key());
-        assert_eq!(92, hasher.next_key());
+        assert_eq!(10, hasher.next_key());
     }
 }
