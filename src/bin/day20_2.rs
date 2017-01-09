@@ -1,108 +1,146 @@
+use std::cmp::Ordering;
 use std::io;
 use std::io::Read;
 
 fn main() {
     let mut input = String::new();
     let _ = io::stdin().read_to_string(&mut input);
-    let blocks = parse(&input);
-    for block in blocks.iter() {
-        println!("{}-{}", block.0, block.1);
-    }
-    let merged_blocks = merge_ranges(blocks);
-    for block in merged_blocks.iter() {
-        println!("{}-{}", block.0, block.1);
-    }
-    let valid = count_valid(&merged_blocks, 4294967295);
-    println!("{}", valid);
+    let ranges = parse_ranges(&input);
+    let sorted_ranges = merge_range(&ranges);
+    let cleaned_ranges = merge_range(&sorted_ranges); //oops
+    let count = count_allowed(&cleaned_ranges, 4294967295);
+    println!("{}", count);
 }
 
-pub fn parse_range(input: &str) -> (usize, usize) {
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
+pub struct Range {
+    start: usize,
+    end: usize,
+}
+
+impl Range {
+    fn new(start: usize, end: usize) -> Range {
+        Range {
+            start: start,
+            end: end,
+        }
+    }
+}
+
+impl Ord for Range {
+        fn cmp(&self, other: &Range) -> Ordering {
+            self.start.cmp(&other.start)
+        }
+}
+
+impl PartialOrd for Range {
+        fn partial_cmp(&self, other: &Range) -> Option<Ordering> {
+            Some(self.cmp(other))
+        }
+}
+
+pub fn parse_range(input: &str) -> Range {
     let mut parts = input.split("-");
-    (parts.next().unwrap().parse().unwrap(), parts.next().unwrap().parse().unwrap())
+    Range {
+        start: parts.next().unwrap().parse().unwrap(),
+        end: parts.next().unwrap().parse().unwrap(),
+    }
 }
 
-pub fn parse(input: &str) -> Vec<(usize, usize)> {
-    let mut output: Vec<(usize, usize)> = Vec::new();
-    'outer: for line in input.lines() {
-        let (new_min, new_max) = parse_range(line.trim());
-        if output.len() == 0 {
-            output.push((new_min, new_max));
-            continue;
-        }
-        'inner: for current_range in output.iter_mut() {
-            let mut min_in_range = false;
-            let mut max_in_range = false;
-            if new_min >= current_range.0 && new_min <= current_range.1 {
-                if new_max > current_range.1 {
-                    current_range.1 = new_max;
-                    continue 'outer;
-                } else {
-                    min_in_range = true;
-                }
-            }
-            if new_max <= current_range.1 && new_max >= current_range.0 {
-                if new_min < current_range.0 {
-                    current_range.0 = new_min;
-                    continue 'outer;
-                } else {
-                    max_in_range = true;
-                }
-            }
+pub fn parse_ranges(input: &str) -> Vec<Range> {
+    let mut output = Vec::new();
+    for line in input.trim().lines() {
+        output.push(parse_range(line));
+    }
+    output
+}
 
-            if max_in_range && min_in_range {
-                continue 'outer;
+pub fn merge_range(input: &[Range]) -> Vec<Range> {
+    let mut output = Vec::new();
+    'outer: for range in input {
+        for existing_range in output.iter_mut() {
+            match compare(existing_range, range) {
+                RangeResult::Inclusive => continue 'outer,
+                RangeResult::LargerEnd => {
+                    existing_range.end = range.end;
+                    continue 'outer;
+                },
+                RangeResult::SmallerStart => {
+                    existing_range.start = range.start;
+                    continue 'outer;
+                },
+                RangeResult::SuperSet => {
+                    existing_range.start = range.start;
+                    existing_range.end = range.end;
+                    continue 'outer;
+                },
+                RangeResult::Exclusive => (),
             }
         }
-        output.push((new_min, new_max));
+        output.push(*range);
     }
     output.sort();
     output
 }
 
-pub fn merge_ranges(input: Vec<(usize, usize)>) -> Vec<(usize, usize)> {
-    let mut output: Vec<(usize, usize)> = Vec::new();
-    let mut skip_next = 0;
-    for (i, x) in input.iter().enumerate() {
-        if skip_next > 0{
-            skip_next -= 1;
-            println!("skipping {}, {}", x.0, x.1);
-            continue;
-        }
-        if (i as isize) - 1 > 0 {
-            if x.0 < input[i - 1].1 {
-                continue;
-            }
-        }
-        let mut to_push = *x;
-        for y in (i + 1)..input.len() {
-            if i + y >= input.len() {
-                break;
-            }
-            let next = input[i + y];
-            if to_push.1 + 1 == next.0 {
-                skip_next += 1;
-                to_push.1 = next.1;
-            }
-            if to_push.0 > to_push.1 {
-                skip_next += 1;
-            }
-        }
-        output.push(to_push);
-        println!("{}, {}", to_push.0, to_push.1);
-    }
-    output
+#[derive(Debug, PartialEq)]
+pub enum RangeCheck {
+    Inside,
+    Before,
+    After,
 }
 
-pub fn count_valid(input: &[(usize, usize)], max: usize) -> usize {
+pub fn in_range(range: &Range, to_check: usize) -> RangeCheck {
+    if range.start > to_check {
+        return RangeCheck::Before
+    }
+    if range.end < to_check {
+        return RangeCheck::After;
+    }
+    RangeCheck::Inside
+}
+
+#[derive(Debug, PartialEq)]
+pub enum RangeResult {
+    Inclusive,
+    Exclusive,
+    LargerEnd,
+    SmallerStart,
+    SuperSet
+}
+
+pub fn compare(left: &Range, right: &Range) -> RangeResult {
+    let start_status = in_range(left, right.start);
+    let end_status = in_range(left, right.end);
+    if start_status == RangeCheck::Inside && end_status == RangeCheck::Inside {
+        return RangeResult::Inclusive;
+    }
+    if start_status == RangeCheck::Before && end_status == RangeCheck::Inside {
+        return RangeResult::SmallerStart;
+    }
+    if start_status == RangeCheck::Inside && end_status == RangeCheck::After {
+        return RangeResult::LargerEnd;
+    }
+    if start_status == RangeCheck::Before && end_status == RangeCheck::After {
+        return RangeResult::SuperSet;
+    }
+    RangeResult::Exclusive
+}
+
+pub fn count_allowed(ranges: &[Range], max: usize) -> usize {
     let mut count = 0;
-    if input[0].0 > 0 {
-        count += input[0].0 - 1;
+    if ranges[0].start != 0 {
+        count += ranges[0].start;
     }
-    for i in 0..(input.len() - 1) {
-        println!("trying to deal with ({}) and ({})", input[i + 1].0, input[i].1);
-        count += input[i + 1].0 - input[i].1 - 1;
+
+    for i in 1..ranges.len() {
+        count += ranges[i].start - ranges[i - 1].end - 1;
     }
-    count += max - input[input.len() - 1].1;
+
+    let last = ranges[ranges.len() - 1];
+    if last.end != max {
+        count += max - last.end;
+    }
     count
 }
 
@@ -112,49 +150,69 @@ mod tests {
 
     #[test]
     fn parses_range() {
-        assert_eq!((5,8), parse_range("5-8"));
+        assert_eq!(Range::new(5,8), parse_range("5-8"));
     }
 
     #[test]
-    fn parses_and_merges_ranges() {
-        let input = "5-8\n0-2\n4-7\n0-1";
-        let output = vec![
-            (0, 2),
-            (4, 8),
-        ];
-        assert_eq!(output, parse(input));
+    fn parses_range_list() {
+        let input = "5-8\n0-2\n4-7\n";
+        let expected = vec![Range::new(5,8), Range::new(0,2), Range::new(4,7)];
+        assert_eq!(expected, parse_ranges(input));
     }
 
     #[test]
     fn merges_ranges() {
-        let input = vec![
-            (0,2),
-            (3,4),
-            (5,6),
-            (8, 10),
-        ];
-        let output = vec![(0,6), (8, 10)];
-        assert_eq!(output, merge_ranges(input));
+        let input = vec![Range::new(6,8), Range::new(0,2), Range::new(5,7), Range::new(0,1), Range::new(4, 5)];
+        let output = vec![Range::new(0,2), Range::new(4,8)];
+        assert_eq!(output, merge_range(&input));
     }
 
     #[test]
-    fn merges_2() {
-        let input = vec![
-            (0, 574_651),
-            (574_652, 1_770_165),
-            (1_770_166, 12_016_953),
-            (2_536_515, 2_830_629),
-        ];
-        let output = vec![(0, 12_016_953)];
-        assert_eq!(output, merge_ranges(input));
+    fn inside_range() {
+        assert_eq!(RangeCheck::Inside, in_range(&Range::new(0, 4), 2));
+        assert_eq!(RangeCheck::Inside, in_range(&Range::new(0, 4), 0));
+        assert_eq!(RangeCheck::Inside, in_range(&Range::new(0, 4), 4));
     }
 
     #[test]
-    fn it_counts_valid() {
-        let input = vec![
-            (0, 2),
-            (4, 8),
-        ];
-        assert_eq!(3, count_valid(&input, 10));
+    fn before_range() {
+        assert_eq!(RangeCheck::Before, in_range(&Range::new(2, 4), 1));
+    }
+
+    #[test]
+    fn after_range() {
+        assert_eq!(RangeCheck::After, in_range(&Range::new(2, 4), 5));
+    }
+
+    #[test]
+    fn compares_inclusive_ranges() {
+        assert_eq!(RangeResult::Inclusive, compare(&Range::new(0,4), &Range::new(1,2)));
+    }
+
+    #[test]
+    fn compares_exlusive_range() {
+        assert_eq!(RangeResult::Exclusive, compare(&Range::new(0,4), &Range::new(5, 8)));
+    }
+
+    #[test]
+    fn compares_smaller_start() {
+        assert_eq!(RangeResult::SmallerStart, compare(&Range::new(3, 5), &Range::new(2, 4)));
+    }
+
+    #[test]
+    fn compare_end_larger_range() {
+        assert_eq!(RangeResult::LargerEnd, compare(&Range::new(0, 2), &Range::new(1, 3)));
+    }
+
+    #[test]
+    fn compares_superset_range() {
+        assert_eq!(RangeResult::SuperSet, compare(&Range::new(3, 4), &Range::new(1, 5)));
+    }
+
+    #[test]
+    fn counts_allowed() {
+        let input = vec![Range::new(0,2), Range::new(4, 8)];
+        let max = 9;
+        assert_eq!(2, count_allowed(&input, max));
     }
 }
